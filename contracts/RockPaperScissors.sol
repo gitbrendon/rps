@@ -44,7 +44,7 @@ contract RockPaperScissors is Pausable {
     }
 
     function createHash(bytes32 _password, Moves _move) public view returns(bytes32 moveHash) {
-        return keccak256(abi.encodePacked(_password, _move, address(this)));
+        return keccak256(abi.encodePacked(_password, _move, msg.sender, address(this)));
     }
 
     function safeAddToBalance(address a, uint amount) private {

@@ -1,8 +1,11 @@
 pragma solidity 0.5;
 
 import "./Pausable.sol";
+import "./SafeMath.sol";
 
 contract RockPaperScissors is Pausable {
+    using SafeMath for uint256;
+
     // State
     enum Moves {ROCK, PAPER, SCISSORS}
     Moves[3] beats;
@@ -20,15 +23,15 @@ contract RockPaperScissors is Pausable {
 
     // Events
     event LogChangeForfeitTime(address indexed sender, uint newSecondsUntilForfeit);
-    event LogAddToBalance(address indexed balanceAddress, uint newBalance);
+    event LogAddedToBalance(address indexed balanceAddress, uint newBalance);
     event LogStartGame(address indexed sender, bytes32 indexed gameHash, uint wager);
     event LogJoinGame(address indexed sender, bytes32 indexed gameHash, Moves move, uint deadline);
     event LogEndGame(address indexed sender, bytes32 indexed gameHash, Moves aMove);
     event LogForfeitGame(address indexed sender, bytes32 indexed gameHash);
     event LogWithdrawFunds(address indexed sender, uint amount);
 
-    constructor() public {
-        secondsUntilForfeit = 1 weeks; // default time for player B to end game is 1 week
+    constructor(uint _secondsUntilForfeit) public {
+        secondsUntilForfeit = _secondsUntilForfeit;
 
         beats[uint(Moves.ROCK)] = Moves.PAPER;
         beats[uint(Moves.PAPER)] = Moves.SCISSORS;
@@ -45,9 +48,8 @@ contract RockPaperScissors is Pausable {
     }
 
     function safeAddToBalance(address a, uint amount) private {
-        balances[a] += amount;
-        assert(balances[a] >= amount); // check for overflow
-        emit LogAddToBalance(a, balances[a]);
+        balances[a] = balances[a].add(amount); // safe add
+        emit LogAddedToBalance(a, balances[a]);
     }
 
     function startGame(bytes32 _gameHash) public payable {
@@ -74,7 +76,7 @@ contract RockPaperScissors is Pausable {
     function endGame(bytes32 _password, Moves _aMove) public {
         bytes32 gameHash = createHash(_password, _aMove);
         require(games[gameHash].a == msg.sender, "You didn't start this game");
-        require(games[gameHash].completed == false, "Game already completed");
+        require(!games[gameHash].completed, "Game already completed");
         
         if(games[gameHash].b == address(0)) {
             // Second player never joined - refund wager
@@ -100,7 +102,7 @@ contract RockPaperScissors is Pausable {
     function forfeit(bytes32 _gameHash) public {
         require(games[_gameHash].b == msg.sender, "You didn't join this game");
         require(games[_gameHash].completed == false, "Game is already complete");
-        require(games[_gameHash].deadline < now, "Deadline for player A to end game has not yet passed");
+        require(games[_gameHash].deadline < now, "Deadline for player A to reveal move has not yet passed");
 
         safeAddToBalance(msg.sender, games[_gameHash].wager * 2);
         games[_gameHash].completed = true;
@@ -108,9 +110,9 @@ contract RockPaperScissors is Pausable {
     }
 
     function withdrawFunds() public {
-        require(balances[msg.sender] > 0, "No funds to withdraw");
-        
         uint amount = balances[msg.sender];
+        require(amount > 0, "No funds to withdraw");
+        
         balances[msg.sender] = 0;
         emit LogWithdrawFunds(msg.sender, amount);
         msg.sender.transfer(amount);

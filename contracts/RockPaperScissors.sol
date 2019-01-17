@@ -41,8 +41,6 @@ contract RockPaperScissors is Pausable {
     }
 
     function createHash(bytes32 _password, Moves _move) public view returns(bytes32 moveHash) {
-        require(_move <= Moves.SCISSORS, "_move is invalid");
-
         return keccak256(abi.encodePacked(_password, _move, address(this)));
     }
 
@@ -64,7 +62,6 @@ contract RockPaperScissors is Pausable {
     function joinGame(bytes32 _gameHash, Moves _move) public payable {
         require(games[_gameHash].a != address(0), "_gameHash is invalid");
         require(games[_gameHash].b == address(0), "_gameHash already has two players");
-        require(_move <= Moves.SCISSORS, "_move is invalid");
         require(msg.value == games[_gameHash].wager, "msg.value does not match game wager");
         // TODO: allow players to use balances[msg.sender] to wager
         

@@ -5,17 +5,16 @@ import "./Pausable.sol";
 contract RockPaperScissors is Pausable {
     // State
     enum Moves {ROCK, PAPER, SCISSORS}
-    uint[] beats = [uint(Moves.PAPER), uint(Moves.SCISSORS), uint(Moves.ROCK)];
+    Moves[3] beats;
     struct Game {
         address a;
         address b;
-        uint bMove;
+        Moves bMove;
         uint wager;
         uint deadline;
         bool completed;
     }
     mapping(bytes32 => Game) public games;
-    bytes32[] gameList; // TODO: implement list so users can search for available games to join
     mapping(address => uint) public balances;
     uint public secondsUntilForfeit;
 
@@ -23,13 +22,17 @@ contract RockPaperScissors is Pausable {
     event LogChangeForfeitTime(address indexed sender, uint newSecondsUntilForfeit);
     event LogAddToBalance(address indexed balanceAddress, uint newBalance);
     event LogStartGame(address indexed sender, bytes32 indexed gameHash, uint wager);
-    event LogJoinGame(address indexed sender, bytes32 indexed gameHash, uint move, uint deadline);
-    event LogEndGame(address indexed sender, bytes32 indexed gameHash, uint aMove);
+    event LogJoinGame(address indexed sender, bytes32 indexed gameHash, Moves move, uint deadline);
+    event LogEndGame(address indexed sender, bytes32 indexed gameHash, Moves aMove);
     event LogForfeitGame(address indexed sender, bytes32 indexed gameHash);
     event LogWithdrawFunds(address indexed sender, uint amount);
 
     constructor() public {
         secondsUntilForfeit = 1 weeks; // default time for player B to end game is 1 week
+
+        beats[uint(Moves.ROCK)] = Moves.PAPER;
+        beats[uint(Moves.PAPER)] = Moves.SCISSORS;
+        beats[uint(Moves.SCISSORS)] = Moves.ROCK;
     }
 
     function changeForfeitTime(uint _newSecondsUntilForfeit) public onlyOwner {
@@ -37,8 +40,8 @@ contract RockPaperScissors is Pausable {
         emit LogChangeForfeitTime(msg.sender, _newSecondsUntilForfeit);
     }
 
-    function createHash(bytes32 _password, uint _move) public view returns(bytes32 moveHash) {
-        require(_move <= uint(Moves.SCISSORS), "_move is invalid");
+    function createHash(bytes32 _password, Moves _move) public view returns(bytes32 moveHash) {
+        require(_move <= Moves.SCISSORS, "_move is invalid");
 
         return keccak256(abi.encodePacked(_password, _move, address(this)));
     }
@@ -58,10 +61,10 @@ contract RockPaperScissors is Pausable {
         emit LogStartGame(msg.sender, _gameHash, msg.value);
     }
 
-    function joinGame(bytes32 _gameHash, uint _move) public payable {
+    function joinGame(bytes32 _gameHash, Moves _move) public payable {
         require(games[_gameHash].a != address(0), "_gameHash is invalid");
         require(games[_gameHash].b == address(0), "_gameHash already has two players");
-        require(_move <= uint(Moves.SCISSORS), "_move is invalid");
+        require(_move <= Moves.SCISSORS, "_move is invalid");
         require(msg.value == games[_gameHash].wager, "msg.value does not match game wager");
         // TODO: allow players to use balances[msg.sender] to wager
         
@@ -71,7 +74,7 @@ contract RockPaperScissors is Pausable {
         emit LogJoinGame(msg.sender, _gameHash, _move, games[_gameHash].deadline);
     }
 
-    function endGame(bytes32 _password, uint _aMove) public {
+    function endGame(bytes32 _password, Moves _aMove) public {
         bytes32 gameHash = createHash(_password, _aMove);
         require(games[gameHash].a == msg.sender, "You didn't start this game");
         require(games[gameHash].completed == false, "Game already completed");
@@ -79,10 +82,10 @@ contract RockPaperScissors is Pausable {
         if(games[gameHash].b == address(0)) {
             // Second player never joined - refund wager
             safeAddToBalance(msg.sender, games[gameHash].wager);
-        } else if(_aMove == beats[games[gameHash].bMove]) {
+        } else if(_aMove == beats[uint(games[gameHash].bMove)]) {
             // 'a' wins
             safeAddToBalance(games[gameHash].a, games[gameHash].wager * 2);
-        } else if (games[gameHash].bMove == beats[_aMove]) {
+        } else if (games[gameHash].bMove == beats[uint(_aMove)]) {
             // 'b' wins
             safeAddToBalance(games[gameHash].b, games[gameHash].wager * 2);
         } else {

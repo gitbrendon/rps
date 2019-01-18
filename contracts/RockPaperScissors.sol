@@ -44,6 +44,8 @@ contract RockPaperScissors is Pausable {
     }
 
     function createHash(bytes32 _salt, address _address, Moves _move) public view returns(bytes32 moveHash) {
+        require(_salt != 0, "Salt cannot be 0");
+
         return keccak256(abi.encodePacked(_salt, _move, _address, address(this)));
     }
 

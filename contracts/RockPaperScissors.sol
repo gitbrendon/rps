@@ -43,8 +43,8 @@ contract RockPaperScissors is Pausable {
         emit LogChangeForfeitTime(msg.sender, _newSecondsUntilForfeit);
     }
 
-    function createHash(bytes32 _password, Moves _move) public view returns(bytes32 moveHash) {
-        return keccak256(abi.encodePacked(_password, _move, msg.sender, address(this)));
+    function createHash(bytes32 _salt, address _address, Moves _move) public view returns(bytes32 moveHash) {
+        return keccak256(abi.encodePacked(_salt, _move, _address, address(this)));
     }
 
     function safeAddToBalance(address a, uint amount) private {
@@ -73,8 +73,8 @@ contract RockPaperScissors is Pausable {
         emit LogJoinGame(msg.sender, _gameHash, _move, games[_gameHash].deadline);
     }
 
-    function endGame(bytes32 _password, Moves _aMove) public {
-        bytes32 gameHash = createHash(_password, _aMove);
+    function endGame(bytes32 _salt, Moves _aMove) public {
+        bytes32 gameHash = createHash(_salt, msg.sender, _aMove);
         require(games[gameHash].a == msg.sender, "You didn't start this game");
         require(!games[gameHash].completed, "Game already completed");
         

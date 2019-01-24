@@ -90,6 +90,7 @@ contract RockPaperScissors is Pausable {
     }
 
     function submitMove(bytes32 _gameHash, Moves _move) public {
+        require(games[_gameHash].wager > 0, "_gameHash is invalid");
         require(games[_gameHash].b == msg.sender, "msg.sender does not match Player B for this game");
         require(!games[_gameHash].bMoveSubmitted, "Move already submitted for this game");
 
